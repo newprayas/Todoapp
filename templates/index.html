@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>To-Do App</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="main-container">
+        <div class="todo-container">
+            <h1>To-Do App</h1>
+            {% if user %}
+                <div class="user-info">
+                    <p>Welcome, {{ user.name }}!</p>
+                    <a href="/logout" class="logout-button">Logout</a>
+                </div>
+                <div class="input-container">
+                    <input type="text" id="todo-input" placeholder="Add a new to-do...">
+                    <input type="number" id="duration-hours" placeholder="Hours" min="0">
+                    <input type="number" id="duration-minutes" placeholder="Mins" min="0" max="59">
+                    <button id="add-button">Add</button>
+                </div>
+                <ul id="todo-list">
+                    {% for todo in todos %}
+                        {% if not todo.completed %}
+                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}">
+                                <span>{{ todo.text }}</span>
+                                <div class="actions">
+                                    {% set duration_str = [] %}
+                                    {% if todo.duration_hours and todo.duration_hours > 0 %}
+                                        {% set _ = duration_str.append(todo.duration_hours ~ 'h') %}
+                                    {% endif %}
+                                    {% if todo.duration_minutes and todo.duration_minutes > 0 %}
+                                        {% set _ = duration_str.append(todo.duration_minutes ~ 'm') %}
+                                    {% endif %}
+                                    {% if duration_str %}
+                                        <span class="duration">{{ duration_str | join(' ') }}</span>
+                                    {% endif %}
+                                    <button class="play-button"><i class="fas fa-play"></i></button>
+                                    <button class="done-button"><i class="fas fa-check"></i></button>
+                                    <button class="delete-button"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+                <hr class="separator">
+                <ul id="completed-list">
+                    {% for todo in todos %}
+                        {% if todo.completed %}
+                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}" class="completed">
+                                <span>{{ todo.text }}</span>
+                                <div class="actions">
+                                    {% set duration_str = [] %}
+                                    {% if todo.duration_hours and todo.duration_hours > 0 %}
+                                        {% set _ = duration_str.append(todo.duration_hours ~ 'h') %}
+                                    {% endif %}
+                                    {% if todo.duration_minutes and todo.duration_minutes > 0 %}
+                                        {% set _ = duration_str.append(todo.duration_minutes ~ 'm') %}
+                                    {% endif %}
+                                    {% if duration_str %}
+                                        <span class="duration">{{ duration_str | join(' ') }}</span>
+                                    {% endif %}
+                                    <button class="play-button"><i class="fas fa-play"></i></button>
+                                    <button class="done-button"><i class="fas fa-undo"></i></button>
+                                    <button class="delete-button"><i class="fas fa-trash"></i></button>
+                                </div>
+                            </li>
+                        {% endif %}
+                    {% endfor %}
+                </ul>
+            {% else %}
+                <div class="login-container">
+                    <p>Please log in to use the To-Do App.</p>
+                    <a href="/login" class="login-button">Login with Google</a>
+                </div>
+            {% endif %}
+        </div>
+        <div class="pomodoro-container" style="display: none;">
+            <h2>Pomodoro Timer</h2>
+            <div id="pomodoro-task"></div>
+            <div class="pomodoro-inputs">
+                <input type="number" id="focus-duration" placeholder="Focus (mins)" min="1">
+                <input type="number" id="break-duration" placeholder="Break (mins)" min="1">
+                <input type="number" id="cycle-count" placeholder="Cycles" min="1" readonly>
+            </div>
+            <div id="pomodoro-session-display"></div>
+            <div class="pomodoro-timer-wrapper">
+                <div class="pomodoro-timer">25:00</div>
+            </div>
+            <div class="pomodoro-controls">
+                <button id="pomodoro-start-pause">Start</button>
+                <button id="pomodoro-skip">Skip to Break</button>
+                <button id="pomodoro-reset">Reset</button>
+            </div>
+            <div id="pomodoro-notification" style="display: none;"></div>
+        </div>
+    </div>
+    <div class="border-flash top"></div>
+    <div class="border-flash bottom"></div>
+    <div class="border-flash left"></div>
+    <div class="border-flash right"></div>
+    {% if user %}
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    {% endif %}
+</body>
+</html>
