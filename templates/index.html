@@ -25,7 +25,7 @@
                 <ul id="todo-list">
                     {% for todo in todos %}
                         {% if not todo.completed %}
-                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}" data-focused-time="{{ todo.focused_time }}">
+                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}" data-focused-time="{{ todo.focused_time }}" data-was-overdue="{{ todo.was_overdue if 'was_overdue' in todo.keys() else 0 }}" data-overdue-time="{{ todo.overdue_time if 'overdue_time' in todo.keys() else 0 }}">
                                 <span>{{ todo.text }}</span>
                                 <div class="actions">
                                     {% set duration_str = [] %}
@@ -50,10 +50,13 @@
                     {% endfor %}
                 </ul>
                 <hr class="separator">
-                <ul id="completed-list">
+                <div class="completed-header">
+                    <button id="completed-toggle" aria-expanded="false"><span class="toggle-arrow">▶</span> Completed</button>
+                </div>
+                <ul id="completed-list" style="display: none;">
                     {% for todo in todos %}
                         {% if todo.completed %}
-                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}" data-focused-time="{{ todo.focused_time }}" class="completed">
+                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}" data-focused-time="{{ todo.focused_time }}" data-was-overdue="{{ todo.was_overdue if 'was_overdue' in todo.keys() else 0 }}" data-overdue-time="{{ todo.overdue_time if 'overdue_time' in todo.keys() else 0 }}" class="completed">
                                 <span>{{ todo.text }}</span>
                                 <div class="actions">
                                     {% set duration_str = [] %}
@@ -87,6 +90,8 @@
         <div class="pomodoro-container" style="display: none;">
             <h2>Pomodoro Timer</h2>
             <div id="pomodoro-task"></div>
+            <!-- Overdue hint shown when working on an overdue task -->
+            <div id="pomodoro-overdue-hint" class="pomodoro-overdue-hint" style="display:none;">Overdue: Working past planned duration</div>
             <div class="pomodoro-inputs">
                 <input type="number" id="focus-duration" placeholder="Focus (mins)" min="1">
                 <input type="number" id="break-duration" placeholder="Break (mins)" min="1">
@@ -111,6 +116,16 @@
     <div class="border-flash bottom"></div>
     <div class="border-flash left"></div>
     <div class="border-flash right"></div>
+    <!-- Global modal placeholder for overdue prompt -->
+    <div id="global-overdue-modal" class="global-modal" style="display:none;">
+        <div class="modal-card">
+            <div id="global-overdue-message">Planned time reached</div>
+            <div class="modal-actions">
+                <button id="modal-mark-complete" class="btn-primary">Mark Complete</button>
+                <button id="modal-continue" class="btn-secondary">Continue</button>
+            </div>
+        </div>
+    </div>
     {% if user %}
     <script src="{{ url_for('static', filename='script.js') }}"></script>
     {% endif %}

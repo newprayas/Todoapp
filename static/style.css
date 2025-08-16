@@ -160,6 +160,45 @@ li.completed span {
     font-style: italic;
 }
 
+/* Overdue task style: make the whole card red and more prominent */
+li.overdue {
+    background-color: rgba(231, 76, 60, 0.15);
+    border: 1px solid rgba(231, 76, 60, 0.6);
+}
+
+li.overdue span {
+    color: #ffebee;
+}
+
+.overdue-badge {
+    display: inline-block;
+    color: #fff;
+    background: rgba(231,76,60,0.9);
+    padding: 2px 6px;
+    margin-left: 10px;
+    border-radius: 4px;
+    font-size: 0.8em;
+}
+
+/* Hide progress bar for completed tasks */
+li.completed .progress-bar-container {
+    display: none;
+}
+
+/* Overdue badge for completed tasks: use a red circle emoji */
+.overdue-badge {
+    background: transparent;
+    padding: 0;
+    margin-left: 8px;
+    font-size: 1.2em;
+}
+
+.overdue-extra {
+    font-size: 0.9em;
+    color: rgba(255, 82, 82, 0.95);
+    margin-top: 6px;
+}
+
 .actions {
     display: flex;
     align-items: center;
@@ -231,6 +270,76 @@ li.completed .play-button {
     border-radius: 2px;
 }
 
+.completed-header {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+#completed-toggle {
+    background: none;
+    border: none;
+    color: #fff;
+    font-size: 1.1em;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toggle-arrow {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+#completed-toggle[aria-expanded="true"] .toggle-arrow {
+    transform: rotate(90deg);
+}
+
+/* Modal for overdue prompt */
+.global-modal {
+    position: fixed;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.6);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 10000;
+}
+
+.global-modal .modal-card {
+    background: #111;
+    padding: 20px 24px;
+    border-radius: 10px;
+    border: 1px solid rgba(255,235,59,0.12);
+    max-width: 420px;
+    width: 90%;
+    color: #fff;
+    text-align: center;
+}
+
+.global-modal .modal-card .modal-actions {
+    margin-top: 12px;
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+}
+
+.global-modal .modal-card button {
+    padding: 8px 12px;
+    border-radius: 6px;
+    border: none;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.global-modal .modal-card .btn-primary { background: #ffeb3b; color: #000; }
+.global-modal .modal-card .btn-secondary { background: rgba(255,255,255,0.08); color: #fff; }
+
 /* Pomodoro Styles */
 #pomodoro-task {
     font-size: 1.2em;
@@ -238,6 +347,18 @@ li.completed .play-button {
     margin-bottom: 20px;
     text-align: center;
 }
+
+    /* Pomodoro overdue hint */
+    .pomodoro-overdue-hint {
+        margin-top: 6px;
+        padding: 6px 10px;
+        background: #fff4f4;
+        border-left: 4px solid #e53935;
+        color: #7a1f1f;
+        border-radius: 4px;
+        font-size: 0.95rem;
+        text-align: center;
+    }
 
 #pomodoro-session-display {
     font-size: 1.1em;
