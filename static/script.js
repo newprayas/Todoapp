@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pomodoroSkipBtn = document.getElementById('pomodoro-skip');
     const pomodoroResetBtn = document.getElementById('pomodoro-reset');
     const pomodoroNotification = document.getElementById('pomodoro-notification');
-    const pomodoroCloseButton = document.getElementById('pomodoro-close-button'); // Added
+    const pomodoroCloseButton = document.getElementById('pomodoro-close-button');
 
     const borderFlashes = document.querySelectorAll('.border-flash');
 
@@ -38,7 +38,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const durationHours = durationHoursInput.value.trim();
         const durationMinutes = durationMinutesInput.value.trim();
 
-        if (todoText !== '') {
+        if (todoText !== '' && durationHours !== '' && durationMinutes !== '') {
             fetch('/add', {
                 method: 'POST',
                 headers: {
@@ -52,7 +52,9 @@ document.addEventListener('DOMContentLoaded', () => {
             })
             .then(response => response.json())
             .then(data => {
-                if (!data.error) {
+                if (data.error) {
+                    alert(data.error);
+                } else {
                     addTodoItemToDOM(data.id, data.text, data.completed, data.duration_hours, data.duration_minutes);
                     todoInput.value = '';
                     durationHoursInput.value = '';
@@ -60,6 +62,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     todoInput.focus();
                 }
             });
+        } else {
+            alert('All fields are required');
         }
     });
 
@@ -198,7 +202,7 @@ document.addEventListener('DOMContentLoaded', () => {
         resetTimer();
     });
 
-    pomodoroCloseButton.addEventListener('click', () => { // Added event listener for close button
+    pomodoroCloseButton.addEventListener('click', () => {
         hidePomodoroTimer();
     });
 
@@ -266,7 +270,7 @@ document.addEventListener('DOMContentLoaded', () => {
         currentRunningTaskId = null; // Reset current running task ID
     }
 
-    function hidePomodoroTimer() { // Added function to hide and reset pomodoro
+    function hidePomodoroTimer() {
         resetPomodoro();
         pomodoroContainer.style.display = 'none';
         todoContainer.classList.remove('pomodoro-active');

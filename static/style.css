@@ -9,24 +9,25 @@ body {
     align-items: center;
     min-height: 100vh;
     color: #fff;
+    font-size: 18px;
 }
 
 .main-container {
     display: flex;
     width: 100%;
-    max-width: 600px; /* Default narrow width */
+    max-width: 800px; /* Default narrow width */
     transition: all 0.5s ease;
     margin: 0 auto; /* Centered */
     gap: 20px; /* Added gap for spacing between sections */
 }
 
 .main-container:has(.todo-container.pomodoro-active) {
-    max-width: 1100px; /* Wider width when pomodoro is active */
+    max-width: 1400px; /* Wider width when pomodoro is active */
 }
 
 .todo-container {
     background-color: rgba(255, 255, 255, 0.05);
-    padding: 40px;
+    padding: 60px;
     border-radius: 15px;
     box-shadow: 0 8px 32px 0 rgba(255, 235, 59, 0.1);
     backdrop-filter: blur(10px);
@@ -34,6 +35,7 @@ body {
     border: 1px solid rgba(255, 235, 59, 0.18);
     width: 100%;
     transition: width 0.5s ease;
+    min-height: 500px;
 }
 
 .todo-container.pomodoro-active {
@@ -42,10 +44,11 @@ body {
 
 .pomodoro-container {
     width: 50%;
-    padding: 40px;
+    padding: 60px;
     background-color: rgba(255, 255, 255, 0.05);
     border-radius: 15px;
     position: relative; /* Added for positioning close button */
+    min-height: 500px;
     /* Removed margin-left: 20px; */
     /* Removed text-align: center; */
 }
@@ -66,7 +69,7 @@ h1, h2 {
     text-align: center;
     font-weight: 600;
     margin-bottom: 30px;
-    font-size: 2.5em;
+    font-size: 3em;
     color: #ffeb3b;
 }
 
@@ -83,7 +86,7 @@ h1, h2 {
     padding: 15px;
     border: none;
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 18px;
     background-color: rgba(255, 255, 255, 0.1);
     color: #fff;
     outline: none;
@@ -94,7 +97,7 @@ h1, h2 {
     padding: 15px;
     border: none;
     border-radius: 8px;
-    font-size: 16px;
+    font-size: 18px;
     background-color: rgba(255, 255, 255, 0.1);
     color: #fff;
     outline: none;
@@ -113,7 +116,7 @@ h1, h2 {
     padding: 15px 20px;
     border-radius: 8px;
     cursor: pointer;
-    font-size: 16px;
+    font-size: 18px;
     /* Removed margin-left: 10px; */
     transition: background-color 0.3s ease;
     font-weight: 600;
@@ -283,7 +286,7 @@ li.completed .play-button {
 }
 
 .pomodoro-timer {
-    font-size: 6em;
+    font-size: 7em;
     font-weight: 600;
     text-align: center;
 }
@@ -305,13 +308,20 @@ li.completed .play-button {
     background-color: #fdd835;
 }
 
-#pomodoro-close-button {
-    background-color: #e74c3c;
+.close-button {
+    position: absolute;
+    top: 15px;
+    right: 15px;
+    background: none;
+    border: none;
     color: #fff;
+    font-size: 2em;
+    cursor: pointer;
+    transition: color 0.3s ease;
 }
 
-#pomodoro-close-button:hover {
-    background-color: #c0392b;
+.close-button:hover {
+    color: #ffeb3b;
 }
 
 #pomodoro-notification {

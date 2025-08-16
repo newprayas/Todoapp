@@ -82,8 +82,8 @@ def add_todo():
     duration_hours = data.get('duration_hours')
     duration_minutes = data.get('duration_minutes')
 
-    if not todo_text:
-        return jsonify({'error': 'Todo text is required'}), 400
+    if not todo_text or not duration_hours or not duration_minutes:
+        return jsonify({'error': 'All fields are required'}), 400
 
     db = get_db()
     cursor = db.cursor()
