@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const pomodoroSkipBtn = document.getElementById('pomodoro-skip');
     const pomodoroResetBtn = document.getElementById('pomodoro-reset');
     const pomodoroNotification = document.getElementById('pomodoro-notification');
+    const pomodoroCloseButton = document.getElementById('pomodoro-close-button'); // Added
 
     const borderFlashes = document.querySelectorAll('.border-flash');
 
@@ -29,6 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let totalCycles;
     let currentCycle = 0;
     let currentTaskDuration = 0;
+    let currentRunningTaskId = null; // Added
 
     // Add a new to-do item
     addButton.addEventListener('click', () => {
@@ -83,14 +85,15 @@ document.addEventListener('DOMContentLoaded', () => {
                 const durationHours = parseInt(li.dataset.durationHours) || 0;
                 const durationMinutes = parseInt(li.dataset.durationMinutes) || 0;
                 currentTaskDuration = (durationHours * 60) + durationMinutes;
-
                 todoContainer.classList.add('pomodoro-active');
                 pomodoroContainer.style.display = 'block';
                 pomodoroTask.textContent = todoText;
                 resetPomodoro();
+                currentRunningTaskId = todoId; // Set current running task ID
                 console.log('Classes and display set.');
             } else if (target.closest('.done-button')) {
                 // Toggle completion status
+                const isCurrentlyCompleted = li.classList.contains('completed');
                 fetch('/toggle', {
                     method: 'POST',
                     headers: {
@@ -102,16 +105,21 @@ document.addEventListener('DOMContentLoaded', () => {
                 .then(data => {
                     if (data.result === 'success') {
                         const doneButtonIcon = li.querySelector('.done-button i');
-                        if (li.classList.contains('completed')) {
+                        if (isCurrentlyCompleted) { // Task is being uncompleted
                             li.classList.remove('completed');
                             doneButtonIcon.classList.remove('fa-undo');
                             doneButtonIcon.classList.add('fa-check');
                             todoList.appendChild(li);
-                        } else {
+                        } else { // Task is being completed
                             li.classList.add('completed');
                             doneButtonIcon.classList.remove('fa-check');
                             doneButtonIcon.classList.add('fa-undo');
                             completedList.appendChild(li);
+
+                            // If the completed task is the one the timer is running for, hide and stop timer
+                            if (currentRunningTaskId === todoId) {
+                                hidePomodoroTimer();
+                            }
                         }
                     }
                 });
@@ -128,6 +136,10 @@ document.addEventListener('DOMContentLoaded', () => {
                 .then(data => {
                     if (data.result === 'success') {
                         li.remove();
+                        // If the deleted task is the one the timer is running for, hide and stop timer
+                        if (currentRunningTaskId === todoId) {
+                            hidePomodoroTimer();
+                        }
                     }
                 });
             }
@@ -184,6 +196,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
     pomodoroResetBtn.addEventListener('click', () => {
         resetTimer();
+    });
+
+    pomodoroCloseButton.addEventListener('click', () => { // Added event listener for close button
+        hidePomodoroTimer();
     });
 
     function startTimer() {
@@ -247,6 +263,14 @@ document.addEventListener('DOMContentLoaded', () => {
         focusDurationInput.value = '';
         breakDurationInput.value = '';
         cycleCountInput.value = '';
+        currentRunningTaskId = null; // Reset current running task ID
+    }
+
+    function hidePomodoroTimer() { // Added function to hide and reset pomodoro
+        resetPomodoro();
+        pomodoroContainer.style.display = 'none';
+        todoContainer.classList.remove('pomodoro-active');
+        currentRunningTaskId = null;
     }
 
     function updateTimerDisplay() {

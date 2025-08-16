@@ -14,8 +14,14 @@ body {
 .main-container {
     display: flex;
     width: 100%;
-    max-width: 1200px;
+    max-width: 600px; /* Default narrow width */
     transition: all 0.5s ease;
+    margin: 0 auto; /* Centered */
+    gap: 20px; /* Added gap for spacing between sections */
+}
+
+.main-container:has(.todo-container.pomodoro-active) {
+    max-width: 1100px; /* Wider width when pomodoro is active */
 }
 
 .todo-container {
@@ -26,7 +32,7 @@ body {
     backdrop-filter: blur(10px);
     -webkit-backdrop-filter: blur(10px);
     border: 1px solid rgba(255, 235, 59, 0.18);
-    width: 100%; /* Removed fixed width */
+    width: 100%;
     transition: width 0.5s ease;
 }
 
@@ -39,8 +45,21 @@ body {
     padding: 40px;
     background-color: rgba(255, 255, 255, 0.05);
     border-radius: 15px;
-    margin-left: 20px;
+    position: relative; /* Added for positioning close button */
+    /* Removed margin-left: 20px; */
     /* Removed text-align: center; */
+}
+
+.pomodoro-controls {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.pomodoro-controls > div {
+    display: flex;
+    justify-content: center;
 }
 
 h1, h2 {
@@ -53,11 +72,14 @@ h1, h2 {
 
 .input-container {
     display: flex;
+    gap: 10px; /* Added gap for spacing */
+    align-items: center; /* Vertically align items */
     margin-bottom: 30px;
 }
 
 #todo-input {
     flex: 1;
+    min-width: 100px; /* Ensure it doesn't become too small */
     padding: 15px;
     border: none;
     border-radius: 8px;
@@ -68,7 +90,7 @@ h1, h2 {
 }
 
 #duration-hours, #duration-minutes {
-    width: 80px;
+    width: 60px; /* Adjusted width */
     padding: 15px;
     border: none;
     border-radius: 8px;
@@ -76,7 +98,8 @@ h1, h2 {
     background-color: rgba(255, 255, 255, 0.1);
     color: #fff;
     outline: none;
-    margin-left: 10px;
+    /* Removed margin-left: 10px; */
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 #todo-input::placeholder, #duration-hours::placeholder, #duration-minutes::placeholder {
@@ -91,9 +114,10 @@ h1, h2 {
     border-radius: 8px;
     cursor: pointer;
     font-size: 16px;
-    margin-left: 10px;
+    /* Removed margin-left: 10px; */
     transition: background-color 0.3s ease;
     font-weight: 600;
+    flex-shrink: 0; /* Prevent shrinking */
 }
 
 #add-button:hover {
@@ -151,6 +175,10 @@ li.completed span {
     font-size: 1.2em;
     margin-left: 10px;
     transition: color 0.3s ease;
+}
+
+li.completed .play-button {
+    display: none;
 }
 
 .play-button:hover {
@@ -260,11 +288,6 @@ li.completed span {
     text-align: center;
 }
 
-.pomodoro-controls {
-    display: flex;
-    justify-content: center;
-}
-
 .pomodoro-controls button {
     background-color: #ffeb3b;
     color: #000;
@@ -280,6 +303,15 @@ li.completed span {
 
 .pomodoro-controls button:hover {
     background-color: #fdd835;
+}
+
+#pomodoro-close-button {
+    background-color: #e74c3c;
+    color: #fff;
+}
+
+#pomodoro-close-button:hover {
+    background-color: #c0392b;
 }
 
 #pomodoro-notification {

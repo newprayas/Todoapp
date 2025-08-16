@@ -4,6 +4,9 @@ import os
 import sqlite3
 import click
 from flask.cli import with_appcontext
+from dotenv import load_dotenv
+
+load_dotenv() # Load environment variables from .env file
 
 app = Flask(__name__)
 app.secret_key = os.urandom(24)
