@@ -6,5 +6,6 @@ CREATE TABLE todos (
     text TEXT NOT NULL,
     completed INTEGER NOT NULL DEFAULT 0,
     duration_hours INTEGER,
-    duration_minutes INTEGER
+    duration_minutes INTEGER,
+    focused_time INTEGER NOT NULL DEFAULT 0
 );

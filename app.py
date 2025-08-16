@@ -93,7 +93,7 @@ def add_todo():
     db.commit()
     db.close()
 
-    return jsonify({'id': new_todo_id, 'text': todo_text, 'completed': 0, 'duration_hours': duration_hours, 'duration_minutes': duration_minutes})
+    return jsonify({'id': new_todo_id, 'text': todo_text, 'completed': 0, 'duration_hours': duration_hours, 'duration_minutes': duration_minutes, 'focused_time': 0})
 
 @app.route('/delete', methods=['POST'])
 def delete_todo():
@@ -126,6 +126,23 @@ def toggle_todo():
         new_completed_status = not todo['completed']
         db.execute('UPDATE todos SET completed = ? WHERE id = ?', (new_completed_status, todo_id))
         db.commit()
+    db.close()
+
+    return jsonify({'result': 'success'})
+
+@app.route('/update_focus_time', methods=['POST'])
+def update_focus_time():
+    user = session.get('user')
+    if not user:
+        return jsonify({'error': 'Unauthorized'}), 401
+
+    data = request.get_json()
+    todo_id = data.get('id')
+    focused_time = data.get('focused_time')
+
+    db = get_db()
+    db.execute('UPDATE todos SET focused_time = ? WHERE id = ? AND user_id = ?', (focused_time, todo_id, user['sub']))
+    db.commit()
     db.close()
 
     return jsonify({'result': 'success'})

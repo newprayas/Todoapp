@@ -139,6 +139,7 @@ li {
     border-radius: 8px;
     margin-bottom: 15px;
     display: flex;
+    flex-wrap: wrap; /* Allow items to wrap */
     justify-content: space-between;
     align-items: center;
     transition: all 0.3s ease;
@@ -374,4 +375,20 @@ li.completed .play-button {
 
 .border-flash.red-flash-active {
     animation: flash-red-border 1s ease-out forwards; /* 1 second duration */
+}
+
+.progress-bar-container {
+    width: 100%;
+    height: 10px;
+    background-color: rgba(255, 255, 255, 0.1);
+    border-radius: 5px;
+    margin-top: 10px;
+}
+
+.progress-bar {
+    height: 100%;
+    background-color: #ffeb3b;
+    border-radius: 5px;
+    width: 0%;
+    transition: width 0.5s ease;
 }

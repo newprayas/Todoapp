@@ -25,7 +25,7 @@
                 <ul id="todo-list">
                     {% for todo in todos %}
                         {% if not todo.completed %}
-                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}">
+                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}" data-focused-time="{{ todo.focused_time }}">
                                 <span>{{ todo.text }}</span>
                                 <div class="actions">
                                     {% set duration_str = [] %}
@@ -42,6 +42,9 @@
                                     <button class="done-button"><i class="fas fa-check"></i></button>
                                     <button class="delete-button"><i class="fas fa-trash"></i></button>
                                 </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar"></div>
+                                </div>
                             </li>
                         {% endif %}
                     {% endfor %}
@@ -50,7 +53,7 @@
                 <ul id="completed-list">
                     {% for todo in todos %}
                         {% if todo.completed %}
-                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}" class="completed">
+                            <li data-id="{{ todo.id }}" data-duration-hours="{{ todo.duration_hours }}" data-duration-minutes="{{ todo.duration_minutes }}" data-focused-time="{{ todo.focused_time }}" class="completed">
                                 <span>{{ todo.text }}</span>
                                 <div class="actions">
                                     {% set duration_str = [] %}
@@ -66,6 +69,9 @@
                                     <button class="play-button"><i class="fas fa-play"></i></button>
                                     <button class="done-button"><i class="fas fa-undo"></i></button>
                                     <button class="delete-button"><i class="fas fa-trash"></i></button>
+                                </div>
+                                <div class="progress-bar-container">
+                                    <div class="progress-bar"></div>
                                 </div>
                             </li>
                         {% endif %}
