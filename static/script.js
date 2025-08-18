@@ -280,6 +280,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                 li.classList.add('overdue');
                             }
                             todoList.appendChild(li);
+                            // Notify uncompletion? skip notification for uncomplete
                         } else { // Task is being completed
                             // If task was overdue, move visual indicator from card to a small badge next to title
                             const wasOverdue = li.dataset.wasOverdue || li.getAttribute('data-was-overdue');
@@ -295,7 +296,11 @@ document.addEventListener('DOMContentLoaded', () => {
                             doneButtonIcon.classList.add('fa-undo');
                             // remove any live overdue-extra (session-only) to avoid inline display
                             const extraEl = li.querySelector('.overdue-extra'); if (extraEl) extraEl.remove();
-                            completedList.appendChild(li);
+                            // Prepend so most-recent completed task appears at the top
+                            if (completedList.firstChild) completedList.insertBefore(li, completedList.firstChild);
+                            else completedList.appendChild(li);
+                            // Browser notification and sound for completion
+                            try { sendNotification('Task completed', `${todoText} — marked complete`, 'complete'); } catch(e){}
                             // Ensure completed overdue text is placed under the title for consistency
                             const wasOverdueNow = li.dataset.wasOverdue || li.getAttribute('data-was-overdue');
                             if (wasOverdueNow && parseInt(wasOverdueNow) === 1) {
@@ -473,6 +478,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pomodoroTimerWrapper.classList.remove('break-mode');
             pomodoroTimerWrapper.classList.add('focus-mode');
             startFocusTimer();
+            // Notify user that focus started
+            try { sendNotification('Focus started', 'Focus timer started', 'start'); } catch(e){}
             
             // Clear any existing interval before starting a new one
             if (progressUpdateInterval) {
@@ -494,6 +501,8 @@ document.addEventListener('DOMContentLoaded', () => {
             pomodoroSkipBtn.textContent = 'Skip to Focus';
             pomodoroTimerWrapper.classList.remove('focus-mode');
             pomodoroTimerWrapper.classList.add('break-mode');
+            // Notify user that break started
+            try { sendNotification('Break started', 'Break timer started', 'break'); } catch(e){}
         }
 
         timerInterval = setInterval(() => {
@@ -621,29 +630,97 @@ document.addEventListener('DOMContentLoaded', () => {
 
     function handleSessionEnd() {
         stopFocusTimer();
+
+        const li = document.querySelector(`li[data-id='${currentRunningTaskId}']`);
+        if (!li) {
+            resetPomodoro(); // or handle error appropriately
+            return;
+        }
+
+        const focusedTime = parseInt(li.dataset.focusedTime) || 0;
+        const durationHours = parseInt(li.dataset.durationHours) || 0;
+        const durationMinutes = parseInt(li.dataset.durationMinutes) || 0;
+        const totalDurationInSeconds = (durationHours * 3600) + (durationMinutes * 60);
+
+        // Check if the total focused time has reached or exceeded the planned duration
+        if (totalDurationInSeconds > 0 && focusedTime >= totalDurationInSeconds && !li.dataset.overdueNotified) {
+            li.dataset.overdueNotified = 1;
+            showOverduePrompt(currentRunningTaskId, 'Planned time reached — mark complete or continue working on overdue task?');
+            return; // Stop further session handling, let the user decide
+        }
+
         if (currentMode === 'focus') {
+            const breakDuration = parseInt(breakDurationInput.value);
             if (currentCycle < totalCycles) {
-                currentMode = 'break';
-                const breakDuration = parseInt(breakDurationInput.value);
-                if(!isNaN(breakDuration) && breakDuration > 0) {
+                if (!isNaN(breakDuration) && breakDuration > 0) {
+                    currentMode = 'break';
                     timeRemaining = breakDuration * 60;
-                    showNotification('Focus session ended! Time for a break.', 'Start Break');
+                    startTimer();
                 } else {
                     resetPomodoro();
                 }
             } else {
-                showNotification('All cycles completed!', 'Reset Pomodoro');
+                try { sendNotification('All cycles completed', 'You finished all cycles', 'complete'); } catch(e){}
+                const taskName = pomodoroTask.textContent || '';
+                showCompletionPrompt(currentRunningTaskId, taskName || 'Task', 'All focus sessions completed');
             }
-        } else {
+        } else { // currentMode is 'break'
             currentMode = 'focus';
+            currentCycle++; // Increment cycle when moving from break to the next focus
+            updateSessionDisplay();
             const focusDuration = parseInt(focusDurationInput.value);
-            if(!isNaN(focusDuration) && focusDuration > 0) {
+            if (!isNaN(focusDuration) && focusDuration > 0) {
                 timeRemaining = focusDuration * 60;
                 showNotification('Break ended! Time to focus.', 'Start Focus');
+                try { sendNotification('Break ended', 'Time to focus', 'start'); } catch(e){}
+                startTimer();
             } else {
                 resetPomodoro();
             }
         }
+    }
+
+    // Show completion modal when all cycles finish
+    function showCompletionPrompt(todoId, taskName, subtitle) {
+        const modal = document.getElementById('global-overdue-modal');
+        const messageEl = document.getElementById('global-overdue-message');
+        // Reuse modal layout but change buttons and text
+        messageEl.innerHTML = `
+            <div class="modal-message-main"><span class="modal-task-name">${taskName}</span></div>
+            <div style="margin-top:8px; font-size:0.95em;">${subtitle}</div>
+        `;
+        modal.style.display = 'flex';
+        const markBtn = document.getElementById('modal-mark-complete');
+        const contBtn = document.getElementById('modal-continue');
+        // Rename buttons: primary -> Close/OK, secondary -> Dismiss
+        markBtn.textContent = 'OK';
+        contBtn.textContent = 'Dismiss';
+        // Unbind handlers by cloning
+        const markClone = markBtn.cloneNode(true);
+        markBtn.parentNode.replaceChild(markClone, markBtn);
+        const contClone = contBtn.cloneNode(true);
+        contBtn.parentNode.replaceChild(contClone, contBtn);
+        const ok = document.getElementById('modal-mark-complete');
+        const dismiss = document.getElementById('modal-continue');
+        ok.addEventListener('click', () => {
+            modal.style.display = 'none';
+            // optionally mark task complete on server if not already
+            if (todoId) {
+                // ensure final toggle to completed if needed
+                const li = document.querySelector(`li[data-id='${todoId}']`);
+                if (li && !li.classList.contains('completed')) {
+                    fetch('/toggle', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: todoId }) })
+                    .then(r => r.json()).then(() => {
+                        if (li) {
+                            li.classList.add('completed');
+                            if (completedList.firstChild) completedList.insertBefore(li, completedList.firstChild);
+                            else completedList.appendChild(li);
+                        }
+                    }).catch(() => {});
+                }
+            }
+        });
+        dismiss.addEventListener('click', () => { modal.style.display = 'none'; });
     }
 
     function showNotification(message, buttonText) {
@@ -749,7 +826,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 // make sure any live extra overdue visuals are removed before showing completed layout
                 const extra = li.querySelector('.overdue-extra'); if (extra) extra.remove();
                 li.classList.add('completed');
-                completedList.appendChild(li);
+                // Prepend completed items so newest-completed appear at the top
+                if (completedList.firstChild) completedList.insertBefore(li, completedList.firstChild);
+                else completedList.appendChild(li);
                 // If this completed task had overdue time persisted, show the small overdue indicator under the title
                 if (parseInt(li.dataset.overdueTime) > 0 || parseInt(li.dataset.wasOverdue) === 1) {
                     ensureCompletedOverdueIndicator(li);
@@ -785,33 +864,12 @@ document.addEventListener('DOMContentLoaded', () => {
             const progress = Math.min((currentFocusedTime / totalDurationInSeconds) * 100, 100);
             progressBar.style.width = `${progress}%`;
             // Mark the task as overdue (red card) when fully completed but not toggled as done
-                if (progress >= 100 && !li.classList.contains('completed')) {
+            // Trigger modal only when crossing the threshold this update (previousFocused < total <= currentFocusedTime)
+            const previousFocused = parseInt(li.dataset.focusedTime) || 0;
+            if (currentFocusedTime >= totalDurationInSeconds && !li.classList.contains('completed')) {
                 li.classList.add('overdue');
-
-                // Show the global overdue modal once when crossing the planned duration
-                if (!li.dataset.overdueNotified) {
-                    console.log('DEBUG: progress reached 100% - prompting user for todo', todoId);
-                    // mark notified immediately to avoid duplicate prompts
-                    li.dataset.overdueNotified = 1;
-                    // set an overdue baseline if not present so extra time counts only after planned duration
-                    if (!li.dataset.overdueBaseline) {
-                        li.dataset.overdueBaseline = totalDurationInSeconds;
-                    }
-                    // If this task is currently running in focus mode, hide the Pomodoro UI so the timer
-                    // is paused and the panel is collapsed immediately before showing the modal.
-                    if (focusSessionStartTime > 0 && currentRunningTaskId === todoId && timerState === 'running' && currentMode === 'focus') {
-                        // hidePomodoroTimer will pause, stop the focus timer, and reset the Pomodoro UI
-                        hidePomodoroTimer();
-                    }
-                    // show modal prompt regardless of Pomodoro visibility
-                    showOverduePrompt(todoId, 'Planned time reached — mark complete or continue working on overdue task?');
-                }
             } else {
                 li.classList.remove('overdue');
-                // reset notified flag if user goes back below threshold
-                if (li.dataset.overdueNotified) {
-                    delete li.dataset.overdueNotified;
-                }
             }
         } else {
             progressBar.style.width = '0%';
@@ -880,8 +938,8 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${secs}s`;
     }
 
-    // showOverduePrompt can be called as showOverduePrompt(todoId, message)
     function showOverduePrompt(message) {
+        try { sendNotification('Task Overdue', 'Your task is now overdue. Mark complete or continue?', 'complete'); } catch(e){}
         // message param may be overloaded; handle signature showOverduePrompt(todoId, message)
         let todoId = null;
         let text = message;
@@ -953,7 +1011,10 @@ document.addEventListener('DOMContentLoaded', () => {
                             li.classList.remove('overdue');
                             li.classList.add('completed');
                             if (doneIcon) { doneIcon.classList.remove('fa-check'); doneIcon.classList.add('fa-undo'); }
-                            completedList.appendChild(li);
+                            // Prepend so most-recent completed task appears at top
+                            if (completedList.firstChild) completedList.insertBefore(li, completedList.firstChild);
+                            else completedList.appendChild(li);
+                            try { sendNotification('Task completed', `${taskName} — marked complete`, 'complete'); } catch(e){}
                             const wasOverdue = li.dataset.wasOverdue || li.getAttribute('data-was-overdue');
                             if (wasOverdue && parseInt(wasOverdue) === 1) {
                                 addOverdueBadge(li);
@@ -1083,6 +1144,63 @@ document.addEventListener('DOMContentLoaded', () => {
                 li.appendChild(text);
             }
         }
+    }
+
+    // --- Browser notifications + sound helpers ---
+    const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
+
+    function playBeep(type = 'default') {
+        if (!audioCtx) return;
+        const now = audioCtx.currentTime;
+        const o = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        o.connect(g);
+        g.connect(audioCtx.destination);
+        if (type === 'complete') {
+            o.frequency.setValueAtTime(880, now);
+            g.gain.setValueAtTime(0.001, now);
+            g.gain.exponentialRampToValueAtTime(0.3, now + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+        } else if (type === 'start') {
+            o.frequency.setValueAtTime(660, now);
+            g.gain.setValueAtTime(0.001, now);
+            g.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+        } else if (type === 'break') {
+            o.frequency.setValueAtTime(440, now);
+            g.gain.setValueAtTime(0.001, now);
+            g.gain.exponentialRampToValueAtTime(0.2, now + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
+        } else {
+            o.frequency.setValueAtTime(720, now);
+            g.gain.setValueAtTime(0.001, now);
+            g.gain.exponentialRampToValueAtTime(0.15, now + 0.01);
+            g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        }
+        o.start(now);
+        o.stop(now + 0.3);
+    }
+
+    function ensureNotificationPermission() {
+        if (!('Notification' in window)) return Promise.resolve(false);
+        if (Notification.permission === 'granted') return Promise.resolve(true);
+        if (Notification.permission === 'denied') return Promise.resolve(false);
+        return Notification.requestPermission().then(p => p === 'granted');
+    }
+
+    function sendNotification(title, body, soundType) {
+        ensureNotificationPermission().then(ok => {
+            if (!ok) return;
+            try {
+                const n = new Notification(title, { body });
+                // play a short sound for the notification
+                try { playBeep(soundType); } catch(e) { console.log('playBeep failed', e); }
+                // close after a few seconds
+                setTimeout(() => { try { n.close(); } catch(e) {} }, 5000);
+            } catch (e) {
+                console.log('Notification failed', e);
+            }
+        });
     }
 
     // For completed tasks, add a label below title:
@@ -1233,6 +1351,14 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Initial progress bar update and restore overdue state from dataset
+    // Ensure completed-list shows newest-first by sorting existing items by data-id descending
+    const completedItemsInitial = Array.from(document.querySelectorAll('#completed-list li'));
+    if (completedItemsInitial.length > 1) {
+        completedItemsInitial.sort((a, b) => parseInt(b.dataset.id) - parseInt(a.dataset.id));
+        const completedListEl = document.getElementById('completed-list');
+        completedItemsInitial.forEach(item => completedListEl.appendChild(item));
+    }
+
     document.querySelectorAll('#todo-list li, #completed-list li').forEach(li => {
         // set overdue class from data-was-overdue (templates render this attribute)
         const wasOverdue = li.dataset.wasOverdue || li.dataset.was_overdue || li.getAttribute('data-was-overdue');
@@ -1279,11 +1405,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     // Force show modal if stored focused time already reached planned duration
                     if (total > 0 && ft >= total && !li.classList.contains('completed') && !li.dataset.overdueNotified) {
-                        console.log('DEBUG: global checker forcing modal for stored focused_time >= total for', id);
-                        // set baseline if missing
-                        if (!li.dataset.overdueBaseline) li.dataset.overdueBaseline = total;
-                        li.dataset.overdueNotified = 1;
-                        showOverduePrompt(id, 'Planned time reached — mark complete or continue working on overdue task?');
+                        console.log('DEBUG: global checker found stored focused_time >= total for', id);
+                        // If this task is currently being actively focused in the Pomodoro session,
+                        // don't show the modal immediately — instead flag the crossing and let
+                        // the session-end handler decide (to avoid popups at the end of a focus session).
+                        if (currentRunningTaskId && currentRunningTaskId === id && timerState === 'running' && currentMode === 'focus') {
+                            console.log('DEBUG: deferring modal because task is active focus session for', id);
+                            if (!li.dataset.overdueBaseline) li.dataset.overdueBaseline = total;
+                            li.dataset.overdueCrossed = 1;
+                        } else {
+                            console.log('DEBUG: global checker prompting modal for', id);
+                            if (!li.dataset.overdueBaseline) li.dataset.overdueBaseline = total;
+                            li.dataset.overdueNotified = 1;
+                            showOverduePrompt(id, 'Planned time reached — mark complete or continue working on overdue task?');
+                        }
                     }
                 } catch (e) {
                     console.log('DEBUG: error reading li dataset', e);
