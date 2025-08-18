@@ -35,14 +35,110 @@ document.addEventListener('DOMContentLoaded', () => {
     let focusSessionStartTime = 0;
     let lastFocusedTime = 0;
     let globalProgressCheckerInterval = null;
+    // flags to know if user manually edited inputs
+    let focusEdited = false;
+    let breakEdited = false;
+    // store per-task timer state when switching between tasks
+    const taskTimerStates = {};
+    // last session increment in seconds (most recent active focus session)
+    let lastSessionIncrement = 0;
+
+    const TASK_STATE_KEY = 'todo_task_timer_states_v1';
+
+    function persistAllTaskStates() {
+        try {
+            localStorage.setItem(TASK_STATE_KEY, JSON.stringify(taskTimerStates));
+        } catch (e) {
+            console.log('DEBUG: persistAllTaskStates failed', e);
+        }
+    }
+
+    function loadAllTaskStates() {
+        try {
+            const raw = localStorage.getItem(TASK_STATE_KEY);
+            if (raw) {
+                const parsed = JSON.parse(raw);
+                if (parsed && typeof parsed === 'object') {
+                    Object.assign(taskTimerStates, parsed);
+                }
+            }
+        } catch (e) {
+            console.log('DEBUG: loadAllTaskStates failed', e);
+        }
+    }
+
+    function saveTaskTimerState(taskId) {
+        if (!taskId) return;
+        // compute lastFocusedTime up-to-date if a focus session is active
+        let persistedLastFocused = lastFocusedTime;
+        if (focusSessionStartTime > 0 && currentRunningTaskId === taskId) {
+            const elapsed = Math.floor((Date.now() - focusSessionStartTime) / 1000);
+            persistedLastFocused = lastFocusedTime + elapsed;
+        }
+        taskTimerStates[taskId] = {
+            timerState: 'paused', // always pause when switching away
+            currentMode: currentMode,
+            timeRemaining: timeRemaining || null,
+            totalCycles: totalCycles || parseInt(cycleCountInput.value) || null,
+            // persist user-editable pomodoro inputs so they restore per-task
+            focusDuration: (typeof focusDurationInput !== 'undefined' && focusDurationInput.value) ? parseInt(focusDurationInput.value) || null : null,
+            breakDuration: (typeof breakDurationInput !== 'undefined' && breakDurationInput.value) ? parseInt(breakDurationInput.value) || null : null,
+            currentCycle: currentCycle || 0,
+            lastFocusedTime: persistedLastFocused || 0
+        };
+    persistAllTaskStates();
+    }
+
+    function restoreTaskTimerState(taskId) {
+    // ensure we have any persisted states loaded
+    if (Object.keys(taskTimerStates).length === 0) loadAllTaskStates();
+    const s = taskTimerStates[taskId];
+        if (!s) return false;
+        // restore fields into global state but keep timer paused
+        timerState = 'paused';
+        currentMode = s.currentMode || 'focus';
+        timeRemaining = (typeof s.timeRemaining !== 'undefined' && s.timeRemaining !== null) ? s.timeRemaining : null;
+        totalCycles = s.totalCycles || null;
+        currentCycle = s.currentCycle || 0;
+        lastFocusedTime = s.lastFocusedTime || 0;
+        // update UI
+        if (totalCycles) cycleCountInput.value = totalCycles;
+        // restore persisted focus/break inputs if present
+        if (typeof s.focusDuration !== 'undefined' && s.focusDuration !== null) {
+            focusDurationInput.value = s.focusDuration;
+        }
+        if (typeof s.breakDuration !== 'undefined' && s.breakDuration !== null) {
+            breakDurationInput.value = s.breakDuration;
+        }
+        // clear edit flags since we've just restored values
+        focusEdited = false;
+        breakEdited = false;
+        if (timeRemaining) updateTimerDisplay();
+        updateSessionDisplay();
+        return true;
+    }
 
     // Add a new to-do item
     addButton.addEventListener('click', () => {
         const todoText = todoInput.value.trim();
-        const durationHours = durationHoursInput.value.trim();
-        const durationMinutes = durationMinutesInput.value.trim();
+        // treat empty hour/minute as 0; require at least one > 0
+        const durationHoursRaw = durationHoursInput.value.trim();
+        const durationMinutesRaw = durationMinutesInput.value.trim();
+        const durationHours = durationHoursRaw === '' ? '0' : durationHoursRaw;
+        const durationMinutes = durationMinutesRaw === '' ? '0' : durationMinutesRaw;
 
-        if (todoText !== '' && durationHours !== '' && durationMinutes !== '') {
+        if (!todoText) {
+            alert('Task name is required');
+            return;
+        }
+        // require at least one of hours or minutes to be > 0
+        if ((parseInt(durationHours) || 0) === 0 && (parseInt(durationMinutes) || 0) === 0) {
+            alert('Please enter a duration in hours or minutes');
+            return;
+        }
+
+        // proceed to create
+        if (todoText !== '') {
             fetch('/add', {
                 method: 'POST',
                 headers: {
@@ -97,6 +193,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 // If another task currently has an active focus session, persist and pause it
                 // so its progress is not lost when switching to a different task.
                 if (currentRunningTaskId && currentRunningTaskId !== todoId) {
+                    // save state for previous task
+                    saveTaskTimerState(currentRunningTaskId);
                     // If a timer is running (could be focus or break), pause intervals
                     if (timerState === 'running') {
                         pauseTimer();
@@ -116,6 +214,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 // keep the selected task id when resetting UI
                 resetPomodoro();
                 currentRunningTaskId = todoId;
+                // restore previous saved state if any
+                const restored = restoreTaskTimerState(todoId);
+                if (!restored) {
+                    // set defaults
+                    timerState = 'paused';
+                    currentMode = 'focus';
+                    timeRemaining = null;
+                    currentCycle = 0;
+                    pomodoroTimerDisplay.textContent = '25:00';
+                    cycleCountInput.value = '';
+                }
                 // highlight the selected task in the list for visibility
                 li.classList.add('active-task');
                 // ensure default focus/break values (user can change them)
@@ -184,7 +293,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             li.classList.add('completed');
                             doneButtonIcon.classList.remove('fa-check');
                             doneButtonIcon.classList.add('fa-undo');
+                            // remove any live overdue-extra (session-only) to avoid inline display
+                            const extraEl = li.querySelector('.overdue-extra'); if (extraEl) extraEl.remove();
                             completedList.appendChild(li);
+                            // Ensure completed overdue text is placed under the title for consistency
+                            const wasOverdueNow = li.dataset.wasOverdue || li.getAttribute('data-was-overdue');
+                            if (wasOverdueNow && parseInt(wasOverdueNow) === 1) {
+                                ensureCompletedOverdueIndicator(li);
+                            } else {
+                                // add appropriate completed status label
+                                ensureCompletedStatusIndicator(li);
+                            }
 
                             if (currentRunningTaskId === todoId) {
                                 hidePomodoroTimer();
@@ -223,25 +342,61 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // track manual edits to focus/break so starting can re-init timer when needed
+    focusDurationInput.addEventListener('input', () => { 
+        focusEdited = true; 
+        if (currentRunningTaskId) saveTaskTimerState(currentRunningTaskId);
+    });
+    breakDurationInput.addEventListener('input', () => { 
+        breakEdited = true; 
+        if (currentRunningTaskId) saveTaskTimerState(currentRunningTaskId);
+    });
+
     pomodoroStartPauseBtn.addEventListener('click', () => {
         if (timerState === 'paused') {
             const focusDuration = parseInt(focusDurationInput.value);
             const breakDuration = parseInt(breakDurationInput.value);
             totalCycles = parseInt(cycleCountInput.value);
 
+            // Validate inputs
             if (isNaN(focusDuration) || isNaN(breakDuration) || isNaN(totalCycles) || focusDuration <= 0 || breakDuration <= 0 || totalCycles <= 0) {
                 alert('Please enter valid values for focus, break, and cycles.');
                 return;
             }
 
+            // Ensure the session display reflects the newly entered cycles immediately
+            updateSessionDisplay();
+
+            // Initialize timeRemaining taking into account manual edits
             if (!timeRemaining) {
                 timeRemaining = focusDuration * 60;
                 currentCycle++;
+                updateSessionDisplay();
+            } else if (currentMode === 'focus' && focusEdited && timerState === 'paused') {
+                // If user changed focus duration manually while paused but timeRemaining still held old value,
+                // reset the timer to the new focus duration for the upcoming start (but keep currentCycle).
+                timeRemaining = focusDuration * 60;
+                updateTimerDisplay();
+                updateSessionDisplay();
+            } else if (currentMode === 'break' && breakEdited && timerState === 'paused') {
+                timeRemaining = breakDuration * 60;
+                updateTimerDisplay();
                 updateSessionDisplay();
             }
             startTimer();
         } else {
             pauseTimer();
+        }
+    });
+
+    // If user edits the cycles input manually, reflect it immediately in UI and state
+    cycleCountInput.addEventListener('input', () => {
+        const v = parseInt(cycleCountInput.value);
+        if (!isNaN(v) && v > 0) {
+            totalCycles = v;
+            updateSessionDisplay();
+            // persist per-task if a task is currently selected
+            if (currentRunningTaskId) saveTaskTimerState(currentRunningTaskId);
         }
     });
 
@@ -290,7 +445,8 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     pomodoroResetBtn.addEventListener('click', () => {
-        resetTimer();
+    // Reset UI and subtract only the current session's increment from the task's progress
+    resetPomodoroAndProgress(currentRunningTaskId);
     });
 
     pomodoroCloseButton.addEventListener('click', () => {
@@ -300,6 +456,9 @@ document.addEventListener('DOMContentLoaded', () => {
     function startTimer() {
     timerState = 'running';
         pomodoroStartPauseBtn.textContent = 'Pause';
+    // user edits applied; clear the edit flags now that timer is running
+    focusEdited = false;
+    breakEdited = false;
         // Visually mark the currently running task in the list
         if (currentRunningTaskId) {
             const runningLi = document.querySelector(`li[data-id='${currentRunningTaskId}']`);
@@ -380,6 +539,28 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         updateTimerDisplay();
         pomodoroStartPauseBtn.textContent = 'Start';
+    }
+
+    // Reset both Pomodoro UI and the task's persisted focused_time (server + UI)
+    function resetPomodoroAndProgress(taskId) {
+        // Reset UI timer
+        resetTimer();
+        // Only subtract the last session increment from the focused_time persisted for this task
+        if (taskId) {
+            const li = document.querySelector(`li[data-id='${taskId}']`);
+            if (li) {
+                const persisted = parseInt(li.dataset.focusedTime) || 0;
+                const subtract = Math.max(0, lastSessionIncrement || 0);
+                const newVal = Math.max(0, persisted - subtract);
+                li.dataset.focusedTime = newVal;
+                // update overdue_time/wasOverdue based on new focused value (server will compute normalization)
+                updateFocusTimeOnServer(taskId, newVal);
+                // remove only the live extra visual showing session-only overtime
+                const extra = li.querySelector('.overdue-extra'); if (extra) extra.remove();
+                // update progress bar to reflect new persisted focused time
+                updateProgressBar(taskId);
+            }
+        }
     }
 
     function resetPomodoro() {
@@ -564,16 +745,20 @@ document.addEventListener('DOMContentLoaded', () => {
         progressBarContainer.appendChild(progressBar);
         li.appendChild(progressBarContainer);
 
-        if (completed) {
-            li.classList.add('completed');
-            completedList.appendChild(li);
-            // If this completed task had overdue time persisted, show the small overdue indicator under the title
-            if (parseInt(li.dataset.overdueTime) > 0 || parseInt(li.dataset.wasOverdue) === 1) {
-                ensureCompletedOverdueIndicator(li);
+            if (completed) {
+                // make sure any live extra overdue visuals are removed before showing completed layout
+                const extra = li.querySelector('.overdue-extra'); if (extra) extra.remove();
+                li.classList.add('completed');
+                completedList.appendChild(li);
+                // If this completed task had overdue time persisted, show the small overdue indicator under the title
+                if (parseInt(li.dataset.overdueTime) > 0 || parseInt(li.dataset.wasOverdue) === 1) {
+                    ensureCompletedOverdueIndicator(li);
+                } else {
+                    ensureCompletedStatusIndicator(li);
+                }
+            } else {
+                todoList.appendChild(li);
             }
-        } else {
-            todoList.appendChild(li);
-        }
 
         updateProgressBar(id);
     }
@@ -776,14 +961,34 @@ document.addEventListener('DOMContentLoaded', () => {
                                 // so it appears on a new line under the title immediately.
                                 const extra = li.querySelector('.overdue-extra');
                                 if (extra) {
-                                    // create/replace completed-overdue-text with the same content
+                                    // create/replace completed-overdue-text with the same content but insert inside .task-left
                                     const prev = li.querySelector('.completed-overdue-text');
                                     if (prev) prev.remove();
                                     const text = document.createElement('div');
                                     text.classList.add('completed-overdue-text');
                                     text.textContent = extra.textContent.replace('Overdue time:', 'Overdue:');
-                                    const span = li.querySelector('.task-left') ? li.querySelector('.task-left') : li.querySelector('span');
-                                    if (span) span.parentNode.insertBefore(text, span.nextSibling);
+                                    text.style.marginTop = '6px';
+                                    text.style.color = 'rgba(255,82,82,0.95)';
+                                    // ensure .task-left exists and insert after the title span
+                                    let container = li.querySelector('.task-left');
+                                    if (!container) {
+                                        const currentSpan = li.querySelector('span');
+                                        if (currentSpan) {
+                                            const wrapper = document.createElement('div');
+                                            wrapper.classList.add('task-left');
+                                            wrapper.appendChild(currentSpan.cloneNode(true));
+                                            currentSpan.remove();
+                                            li.insertBefore(wrapper, li.firstChild);
+                                            container = wrapper;
+                                        }
+                                    }
+                                    if (container) {
+                                        const titleSpan = container.querySelector('span');
+                                        if (titleSpan) titleSpan.parentNode.insertBefore(text, titleSpan.nextSibling);
+                                        else container.appendChild(text);
+                                    } else {
+                                        li.appendChild(text);
+                                    }
                                     // remove live extra to avoid duplication
                                     extra.remove();
                                 } else {
@@ -839,6 +1044,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // remove previous indicator to avoid duplicates
         const prev = li.querySelector('.completed-overdue-text');
         if (prev) prev.remove();
+        // Remove any live session-only overtime element
+        const liveExtra = li.querySelector('.overdue-extra'); if (liveExtra) liveExtra.remove();
 
         const overdueSeconds = parseInt(li.dataset.overdueTime) || 0;
         if (overdueSeconds > 0) {
@@ -847,8 +1054,117 @@ document.addEventListener('DOMContentLoaded', () => {
             text.textContent = `Overdue: ${formatDuration(overdueSeconds)}`;
             text.style.marginTop = '6px';
             text.style.color = 'rgba(255,82,82,0.95)';
-            const span = li.querySelector('span');
-            if (span) span.parentNode.insertBefore(text, span.nextSibling);
+            // Prefer to insert inside the .task-left wrapper immediately after the title span
+            let container = li.querySelector('.task-left');
+            if (!container) {
+                // migrate existing single span into a .task-left wrapper
+                const currentSpan = li.querySelector('span');
+                if (currentSpan) {
+                    const wrapper = document.createElement('div');
+                    wrapper.classList.add('task-left');
+                    wrapper.appendChild(currentSpan.cloneNode(true));
+                    currentSpan.remove();
+                    li.insertBefore(wrapper, li.firstChild);
+                    container = wrapper;
+                }
+            }
+            if (container) {
+                // remove any old completed-overdue-text inside container to avoid ordering issues
+                const prevInside = container.querySelector('.completed-overdue-text'); if (prevInside) prevInside.remove();
+                // insert after the title span
+                const titleSpan = container.querySelector('span');
+                if (titleSpan) {
+                    titleSpan.parentNode.insertBefore(text, titleSpan.nextSibling);
+                } else {
+                    container.appendChild(text);
+                }
+            } else {
+                // fallback: append to li so it appears on its own line
+                li.appendChild(text);
+            }
+        }
+    }
+
+    // For completed tasks, add a label below title:
+    // - If task was marked completed BEFORE reaching full planned progress => 'Underdue task' (yellow)
+    // - If task reached planned progress (no overdue) => 'Completed task' (green)
+    function ensureCompletedStatusIndicator(li) {
+        if (!li) return;
+        // remove any previous status indicators
+        const prevOverdue = li.querySelector('.completed-overdue-text'); if (prevOverdue) prevOverdue.remove();
+        const prevUnderdue = li.querySelector('.completed-underdue-text'); if (prevUnderdue) prevUnderdue.remove();
+        const prevComplete = li.querySelector('.completed-complete-text'); if (prevComplete) prevComplete.remove();
+
+        // compute whether task was completed before planned duration or after
+        const focused = parseInt(li.dataset.focusedTime) || 0;
+        const overdue = parseInt(li.dataset.overdueTime) || 0;
+        const dh = parseInt(li.dataset.durationHours) || 0;
+        const dm = parseInt(li.dataset.durationMinutes) || 0;
+        const total = (dh * 3600) + (dm * 60);
+
+        // If there is overdue time, show overdue indicator (handled by ensureCompletedOverdueIndicator)
+        if (overdue > 0) {
+            ensureCompletedOverdueIndicator(li);
+            return;
+        }
+
+        // If no planned duration, do nothing
+        if (total <= 0) return;
+
+        // If focusedTime < total when marked complete => underdue
+        if (focused < total) {
+            const text = document.createElement('div');
+            text.classList.add('completed-underdue-text');
+            text.textContent = 'Underdue task';
+            // Prefer inserting inside .task-left under the title span
+            let container = li.querySelector('.task-left');
+            if (!container) {
+                const currentSpan = li.querySelector('span');
+                if (currentSpan) {
+                    const wrapper = document.createElement('div');
+                    wrapper.classList.add('task-left');
+                    wrapper.appendChild(currentSpan.cloneNode(true));
+                    currentSpan.remove();
+                    li.insertBefore(wrapper, li.firstChild);
+                    container = wrapper;
+                }
+            }
+            if (container) {
+                // insert after the title span inside the wrapper
+                const titleSpan = container.querySelector('span');
+                if (titleSpan) titleSpan.parentNode.insertBefore(text, titleSpan.nextSibling);
+                else container.appendChild(text);
+            } else {
+                li.appendChild(text);
+            }
+            return;
+        }
+
+        // If reached planned duration and no overdue => Completed task
+        if (focused >= total && overdue === 0) {
+            const text = document.createElement('div');
+            text.classList.add('completed-complete-text');
+            text.textContent = 'Completed task';
+            let container = li.querySelector('.task-left');
+            if (!container) {
+                const currentSpan = li.querySelector('span');
+                if (currentSpan) {
+                    const wrapper = document.createElement('div');
+                    wrapper.classList.add('task-left');
+                    wrapper.appendChild(currentSpan.cloneNode(true));
+                    currentSpan.remove();
+                    li.insertBefore(wrapper, li.firstChild);
+                    container = wrapper;
+                }
+            }
+            if (container) {
+                const titleSpan = container.querySelector('span');
+                if (titleSpan) titleSpan.parentNode.insertBefore(text, titleSpan.nextSibling);
+                else container.appendChild(text);
+            } else {
+                li.appendChild(text);
+            }
+            return;
         }
     }
 
@@ -864,6 +1180,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (focusSessionStartTime === 0) return;
 
         const elapsedSeconds = Math.floor((Date.now() - focusSessionStartTime) / 1000);
+    // track last session increment for potential selective reset
+    lastSessionIncrement = elapsedSeconds;
         const li = document.querySelector(`li[data-id='${currentRunningTaskId}']`);
         if (li) {
             const newFocusedTime = lastFocusedTime + elapsedSeconds;
@@ -933,7 +1251,12 @@ document.addEventListener('DOMContentLoaded', () => {
                 currentSpan.remove();
                 li.insertBefore(wrapper, li.firstChild);
             }
-            ensureCompletedOverdueIndicator(li);
+            // Show the appropriate completed label (overdue / underdue / completed)
+            if (parseInt(li.dataset.overdueTime) > 0 || parseInt(li.dataset.wasOverdue) === 1) {
+                ensureCompletedOverdueIndicator(li);
+            } else {
+                ensureCompletedStatusIndicator(li);
+            }
         }
         updateProgressBar(li.dataset.id);
     });
@@ -987,6 +1310,38 @@ document.addEventListener('DOMContentLoaded', () => {
                 completedListEl.style.display = 'block';
                 completedToggle.setAttribute('aria-expanded', 'true');
             }
+        });
+    }
+
+    // Clear All completed tasks handler
+    const clearCompletedBtn = document.getElementById('clear-completed-button');
+    if (clearCompletedBtn) {
+        clearCompletedBtn.addEventListener('click', () => {
+            const completedItems = Array.from(document.querySelectorAll('#completed-list li'));
+            if (completedItems.length === 0) return;
+            // Confirm destructive action
+            if (!confirm(`Clear ${completedItems.length} completed task(s)? This cannot be undone.`)) return;
+
+            // Optimistically remove from UI and issue delete requests
+            completedItems.forEach(li => {
+                const id = li.dataset.id;
+                // Remove from DOM immediately for responsiveness
+                li.remove();
+                // Call server to delete
+                fetch('/delete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ id: id }),
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (!data || data.result !== 'success') {
+                        console.log('DEBUG: failed to delete completed todo', id, data);
+                        // On failure, we could refresh the page to reconcile, but keep simple for now
+                    }
+                })
+                .catch(err => console.log('DEBUG: error deleting completed todo', id, err));
+            });
         });
     }
 

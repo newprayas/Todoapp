@@ -157,7 +157,7 @@ li span:first-child {
 
 li.completed span {
     color: rgba(255, 255, 255, 0.5);
-    font-style: italic;
+    font-style: normal; /* show completed tasks in normal font */
 }
 
 /* Overdue task style: make the whole card red and more prominent */
@@ -288,7 +288,7 @@ li.completed .play-button {
 
 .completed-header {
     display: flex;
-    justify-content: flex-start;
+    justify-content: space-between;
     align-items: center;
     margin-bottom: 8px;
 }
@@ -302,6 +302,21 @@ li.completed .play-button {
     display: flex;
     align-items: center;
     gap: 8px;
+}
+
+#clear-completed-button {
+    background: transparent;
+    border: 1px solid rgba(255,255,255,0.08);
+    color: #fff;
+    padding: 8px 12px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+#clear-completed-button:hover {
+    background: rgba(255,235,59,0.06);
+    border-color: rgba(255,235,59,0.16);
 }
 
 .toggle-arrow {
@@ -560,6 +575,22 @@ li .actions {
 .completed-overdue-text {
     font-size: 0.9em;
     color: rgba(255,82,82,0.95);
+    margin-top: 6px;
+    text-align: left;
+}
+
+/* Completed before planned duration */
+.completed-underdue-text {
+    font-size: 0.9em;
+    color: rgba(255, 193, 7, 0.95); /* yellow */
+    margin-top: 6px;
+    text-align: left;
+}
+
+/* Completed and reached planned duration (no overdue) */
+.completed-complete-text {
+    font-size: 0.9em;
+    color: rgba(46, 204, 113, 0.95); /* green */
     margin-top: 6px;
     text-align: left;
 }
