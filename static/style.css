@@ -193,6 +193,22 @@ li.completed .progress-bar-container {
     font-size: 1.2em;
 }
 
+/* Highlight currently running task in Pomodoro with a yellow border */
+li.active-task {
+    /* Keep a subtle glow for the whole card, but do not add a border to the card itself. */
+    box-shadow: 0 6px 24px rgba(255, 235, 59, 0.12);
+}
+
+/* Only the title span inside the active task should receive the yellow border */
+li.active-task span:first-child {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 235, 59, 0.95);
+    background: rgba(255, 235, 59, 0.04);
+    margin-right: 8px;
+}
+
 .overdue-extra {
     font-size: 0.9em;
     color: rgba(255, 82, 82, 0.95);
@@ -348,16 +364,29 @@ li.completed .play-button {
     text-align: center;
 }
 
-    /* Pomodoro overdue hint */
+/* Pomodoro task name in timer window - highlighted with yellow border */
+#pomodoro-task .pomodoro-task-name {
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 2px solid rgba(255,235,59,0.95);
+    background: rgba(255,235,59,0.03);
+}
+
+#pomodoro-task .pomodoro-overdue-emoji {
+    margin-left: 8px;
+    font-size: 1.05rem;
+    vertical-align: middle;
+}
+
+    /* Pomodoro overdue hint: simplified — only show red text with emoji, no box */
     .pomodoro-overdue-hint {
-        margin-top: 6px;
-        padding: 6px 10px;
-        background: #fff4f4;
-        border-left: 4px solid #e53935;
-        color: #7a1f1f;
-        border-radius: 4px;
-        font-size: 0.95rem;
-        text-align: center;
+    margin-top: 12px;
+    padding: 6px 0;
+    background: transparent;
+    color: rgba(231,76,60,0.95);
+    font-size: 1.05rem;
+    text-align: center;
     }
 
 #pomodoro-session-display {
@@ -512,4 +541,36 @@ li.completed .play-button {
     border-radius: 5px;
     width: 0%;
     transition: width 0.5s ease;
+}
+
+/* Left column inside a todo li to hold title and small metadata lines */
+.task-left {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start; /* left align text */
+    flex-grow: 1;
+}
+
+/* Keep actions aligned right */
+li .actions {
+    margin-left: auto;
+}
+
+/* Completed overdue small text (placed under title) */
+.completed-overdue-text {
+    font-size: 0.9em;
+    color: rgba(255,82,82,0.95);
+    margin-top: 6px;
+    text-align: left;
+}
+
+/* Modal task name highlight */
+.modal-message-main { text-align: center; }
+.modal-task-name {
+    font-weight: 700;
+    display: inline-block;
+    padding: 6px 10px;
+    border-radius: 6px;
+    border: 2px solid rgba(255, 235, 59, 0.95); /* yellow border */
+    background: rgba(255,235,59,0.04);
 }
