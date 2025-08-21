@@ -1169,38 +1169,20 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // --- Browser notifications + sound helpers ---
-    const audioCtx = (window.AudioContext || window.webkitAudioContext) ? new (window.AudioContext || window.webkitAudioContext)() : null;
-
-    function playBeep(type = 'default') {
-        if (!audioCtx) return;
-        const now = audioCtx.currentTime;
-        const o = audioCtx.createOscillator();
-        const g = audioCtx.createGain();
-        o.connect(g);
-        g.connect(audioCtx.destination);
-        if (type === 'complete') {
-            o.frequency.setValueAtTime(880, now);
-            g.gain.setValueAtTime(0.001, now);
-            g.gain.exponentialRampToValueAtTime(0.3, now + 0.01);
-            g.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
-        } else if (type === 'start') {
-            o.frequency.setValueAtTime(660, now);
-            g.gain.setValueAtTime(0.001, now);
-            g.gain.exponentialRampToValueAtTime(0.18, now + 0.01);
-            g.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
-        } else if (type === 'break') {
-            o.frequency.setValueAtTime(440, now);
-            g.gain.setValueAtTime(0.001, now);
-            g.gain.exponentialRampToValueAtTime(0.2, now + 0.01);
-            g.gain.exponentialRampToValueAtTime(0.001, now + 0.22);
-        } else {
-            o.frequency.setValueAtTime(720, now);
-            g.gain.setValueAtTime(0.001, now);
-            g.gain.exponentialRampToValueAtTime(0.15, now + 0.01);
-            g.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+    function playSound(soundType) {
+        let soundFile = '';
+        if (soundType === 'break') {
+            soundFile = '/static/sounds/Break timer start.wav';
+        } else if (soundType === 'start') {
+            soundFile = '/static/sounds/Focus timer start.wav';
+        } else if (soundType === 'complete') {
+            soundFile = '/static/sounds/progress bar full.wav';
         }
-        o.start(now);
-        o.stop(now + 0.3);
+
+        if (soundFile) {
+            const audio = new Audio(soundFile);
+            audio.play().catch(e => console.log('Audio play failed', e));
+        }
     }
 
     function ensureNotificationPermission() {
@@ -1216,7 +1198,7 @@ document.addEventListener('DOMContentLoaded', () => {
             try {
                 const n = new Notification(title, { body });
                 // play a short sound for the notification
-                try { playBeep(soundType); } catch(e) { console.log('playBeep failed', e); }
+                try { playSound(soundType); } catch(e) { console.log('playSound failed', e); }
                 // close after a few seconds
                 setTimeout(() => { try { n.close(); } catch(e) {} }, 5000);
             } catch (e) {
