@@ -368,6 +368,27 @@ document.addEventListener('DOMContentLoaded', () => {
                 return;
             }
 
+            // If a task is selected, ensure the focus duration does not exceed the task's total planned duration
+            // Apply this rule only for normal (non-overdue) tasks. Skip validation for overdue tasks and overdue pomodoro sessions.
+            if (currentRunningTaskId) {
+                try {
+                    const li = document.querySelector(`li[data-id='${currentRunningTaskId}']`);
+                    // Skip validation for overdue tasks (server-reported overdue or UI class)
+                    const isOverdue = (li && (li.dataset.wasOverdue && parseInt(li.dataset.wasOverdue) === 1)) || (li && parseInt(li.dataset.overdueTime) > 0) || (li && li.classList && li.classList.contains('overdue'));
+                    if (!isOverdue) {
+                        const rem = computeRemainingPlannedSeconds(currentRunningTaskId);
+                        if (rem && typeof rem.total !== 'undefined') {
+                            if ((focusDuration * 60) > rem.total) {
+                                alert('Focus duration cannot be longer than the task duration. Please reduce the focus duration or increase the task duration.');
+                                return;
+                            }
+                        }
+                    }
+                } catch (e) {
+                    console.log('DEBUG: focus duration validation failed', e);
+                }
+            }
+
             // Ensure the session display reflects the newly entered cycles immediately
             updateSessionDisplay();
 
@@ -709,6 +730,13 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="margin-top:8px; font-size:0.95em;">${subtitle}</div>
         `;
         modal.style.display = 'flex';
+        // Hide the Pomodoro UI while showing the completion modal without resetting internal state
+        try {
+            if (pomodoroContainer) pomodoroContainer.style.display = 'none';
+            if (todoContainer) todoContainer.classList.remove('pomodoro-active');
+        } catch (e) {
+            console.log('DEBUG: showCompletionPrompt hide UI failed', e);
+        }
         const markBtn = document.getElementById('modal-mark-complete');
         const contBtn = document.getElementById('modal-continue');
         // Rename buttons: primary -> Close/OK, secondary -> Dismiss
