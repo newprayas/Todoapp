@@ -117,8 +117,25 @@ def login():
 
 @app.route('/authorize')
 def authorize():
-    token = google.authorize_access_token()
-    user_info = token['userinfo']
+    try:
+        token = google.authorize_access_token()
+    except Exception as e:
+        app.logger.exception("oauth: authorize_access_token failed")
+        return "OAuth authorization failed (check server logs)", 500
+
+    # Try to get user info from the token first, otherwise call the userinfo endpoint
+    user_info = None
+    try:
+        if isinstance(token, dict):
+            user_info = token.get('userinfo')
+        if not user_info:
+            resp = google.get('userinfo')
+            resp.raise_for_status()
+            user_info = resp.json()
+    except Exception:
+        app.logger.exception("oauth: failed to obtain userinfo")
+        return "Failed to fetch user info from provider (check server logs)", 500
+
     session['user'] = user_info
     return redirect('/')
 

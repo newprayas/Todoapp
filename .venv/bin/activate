@@ -37,7 +37,7 @@ deactivate () {
 # unset irrelevant variables
 deactivate nondestructive
 
-VIRTUAL_ENV="/Users/pustak/Documents/VS code projects/Todoapp/.venv"
+VIRTUAL_ENV="/Users/pustak/Documents/VS code projects/Todoapp deployment/.venv"
 export VIRTUAL_ENV
 
 _OLD_VIRTUAL_PATH="$PATH"
