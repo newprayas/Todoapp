@@ -16,5 +16,8 @@
   "bugs": {
     "url": "https://github.com/newprayas/Todoapp/issues"
   },
-  "homepage": "https://github.com/newprayas/Todoapp#readme"
+  "homepage": "https://github.com/newprayas/Todoapp#readme",
+  "devDependencies": {
+    "@playwright/test": "^1.55.0"
+  }
 }
