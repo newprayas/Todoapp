@@ -1385,6 +1385,13 @@ document.addEventListener('DOMContentLoaded', () => {
             } catch (e) {
                 console.log('DEBUG: triggerOverdueForTask stopFocusTimer failed', e);
             }
+            // Also hide the Pomodoro UI without resetting internal pomodoro state
+            try {
+                if (pomodoroContainer) pomodoroContainer.style.display = 'none';
+                if (todoContainer) todoContainer.classList.remove('pomodoro-active');
+            } catch (e) {
+                console.log('DEBUG: triggerOverdueForTask hide UI failed', e);
+            }
             // ensure processing flag is cleared after a short grace period in case server doesn't respond
             setTimeout(() => {
                 try { delete li.dataset.processing; console.log('DEBUG: triggerOverdueForTask cleared processing for', todoId); } catch (e) {}
