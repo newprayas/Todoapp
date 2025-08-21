@@ -6,13 +6,14 @@ import click
 from flask.cli import with_appcontext
 from dotenv import load_dotenv
 
-load_dotenv() # Load environment variables from .env file
+load_dotenv()  # Load environment variables from .env file
 
 app = Flask(__name__)
-app.secret_key = os.urandom(24)
+# Prefer an environment-provided secret key (set this on Render). Fall back to a runtime key for local dev.
+app.secret_key = os.environ.get('SECRET_KEY') or os.urandom(24)
 
 # Database setup
-DATABASE = 'database.db'
+DATABASE = os.environ.get('DATABASE_PATH', 'database.db')
 
 def get_db():
     db = sqlite3.connect(DATABASE)
@@ -230,4 +231,18 @@ def update_focus_time():
     return jsonify({'result': 'success', 'was_overdue': was_overdue, 'overdue_time': overdue_time, 'focused_time': ft})
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    # When running locally, respect PORT/HOST/FLASK_DEBUG environment variables so behavior matches Render.
+    port = int(os.environ.get('PORT', 5000))
+    host = os.environ.get('HOST', '0.0.0.0')
+    debug = os.environ.get('FLASK_DEBUG', '0') == '1'
+    # Ensure the database exists on first start (useful for first deploy on Render)
+    try:
+        if not os.path.exists(DATABASE):
+            init_db()
+        else:
+            ensure_was_overdue_column()
+    except Exception:
+        # If DB init fails for some reason, continue to start; surface errors in logs.
+        pass
+
+    app.run(host=host, port=port, debug=debug)
