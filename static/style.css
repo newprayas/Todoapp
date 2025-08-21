@@ -40,6 +40,28 @@ body {
     position: relative; /* allow absolute positioning of logout button */
 }
 
+/* Small credit line at the top center of the todo card */
+.todo-container .made-by {
+    position: absolute;
+    top: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 235, 59, 0.06);
+    color: rgba(255, 235, 59, 0.95);
+    padding: 6px 12px;
+    border-radius: 999px;
+    font-size: 0.9em;
+    font-weight: 600;
+    z-index: 1500;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+}
+.todo-container .made-by .heart {
+    filter: drop-shadow(0 1px 0 rgba(0,0,0,0.25));
+    transform: translateY(-1px);
+}
+
 .todo-container.pomodoro-active {
     width: 50%;
 }
